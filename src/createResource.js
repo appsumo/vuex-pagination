@@ -19,6 +19,9 @@ module.exports = function (name, fetchPage, opts) {
 
   if (this.getters[[getRootModuleName(), moduleTitle, 'instance'].join('/')]) return
 
+  const preserveState = !!this.state[getRootModuleName()][moduleTitle]
+
+console.log('Register module:', getRootModuleName(), moduleTitle, preserveState, this.state);
   this.registerModule([getRootModuleName(), moduleTitle], {
     namespaced: true,
     state: {
@@ -314,6 +317,8 @@ module.exports = function (name, fetchPage, opts) {
         state.currentRequest = currentRequest
       }
     }
+  }, {
+    preserveState,
   })
   return moduleTitle
 }
