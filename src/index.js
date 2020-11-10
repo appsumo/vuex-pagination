@@ -11,7 +11,6 @@ var _store = null
 function initializeStore (store) {
   _store = store
   initializedStore = true
-  console.log('Register module', store.state, !!store.state[getRootModuleName()]);
   store.registerModule(getRootModuleName(), {
     namespaced: true,
     actions: {
