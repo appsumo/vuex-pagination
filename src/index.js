@@ -3,45 +3,42 @@ const { getRootModuleName } = require('./rootModuleName')
 const createResource = require('./createResource')
 const { setVueSet } = require('./util')
 
-var initialResources = []
-var initializedStore = null
-
-var _store = null
-
 function initializeStore (store) {
-  _store = store
-  initializedStore = true
-  console.log('Register module', store.state, !!store.state[getRootModuleName()]);
-  store.registerModule(getRootModuleName(), {
-    namespaced: true,
-    actions: {
-      createResource ({ rootGetters, commit }, { name, fetchPage, opts }) {
-        if (rootGetters[[getRootModuleName(), name, 'instance'].join('/')]) return
-        let moduleTitle = createResource.call(this, name, fetchPage, opts)
-        commit(`initializedResource`, moduleTitle)
-      }
-    },
-    mutations: {
-      initializedResource: function () {}
-    },
-  }, {
-    preserveState: !!store.state[getRootModuleName()],
-  })
+  if (!store._modules.isRegistered([getRootModuleName()])) {
+    store.registerModule(getRootModuleName(), {
+      namespaced: true,
+      actions: {
+        createResource ({ rootGetters, commit }, { name, fetchPage, opts }) {
+          if (rootGetters[[getRootModuleName(), name, 'instance'].join('/')]) return
+          let moduleTitle = createResource.call(this, name, fetchPage, opts)
+          commit(`initializedResource`, moduleTitle)
+        }
+      },
+      mutations: {
+        initializedResource: function () {}
+      },
+    }, {
+      preserveState: !!store.state[getRootModuleName()],
+    })
+  }
 
-  initialResources.map((args) => {
-    store.dispatch([getRootModuleName(), 'createResource'].join('/'), args)
-  })
+  if (!store.createResource) {
+    store.createResource = (name, fetchPage, opts) => {
+      store.dispatch([getRootModuleName(), 'createResource'].join('/'), { name, fetchPage, opts })
+    
+      return createController(name, store)
+    }
+  }
 }
 
 // vue-plugin
 module.exports.PaginationPlugin = {
   install: function (Vue, opts) {
     setVueSet(Vue.set.bind(Vue))
-    initializedStore = null
     Vue.mixin({
       created: function () {
-        if (this.$store && !initializedStore) initializeStore(this.$store)
         if (!this.$options.computed || !this.$store) return
+        initializeStore(this.$store)
 
         // We'll save instances whose modules have not been registered yet for later
         this.instanceQueue = this.instanceQueue || []
@@ -93,29 +90,11 @@ module.exports.PaginationPlugin = {
   }
 }
 
-module.exports.createResource = function (name, fetchPage, opts) {
-  if (initializedStore === null) {
-    initialResources.push({ name, fetchPage, opts })
-  } else {
-    _store.dispatch([getRootModuleName(), 'createResource'].join('/'), { name, fetchPage, opts })
-  }
-
-  return createController(name)
-}
-
 module.exports.createInstance = function (title, opts) {
   return createInstance.call(this, getRootModuleName(), title, opts)
 }
 
-module.exports.controller = function (name) {
-  return createController(name)
-}
-
-module.exports.resource = function (name) {
-  return createController(name)
-}
-
-function createController (name) {
+function createController (name, _store) {
   return {
     refresh: function () {
       return _store.dispatch([getRootModuleName(), name, 'refresh'].join('/'))
